@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<raConfiguration version="12">
+  <generalSettings>
+    <option key="#Board#" value="board.custom"/>
+    <option key="CPU" value="RA6W2"/>
+    <option key="Core" value="CM33"/>
+    <option key="#TargetName#" value="R7JA6W2DEDZNR"/>
+    <option key="#TargetARCHITECTURE#" value="cortex-m33"/>
+    <option key="#DeviceCommand#" value="R7JA6W2DE"/>
+    <option key="#RTOS#" value="rtos.awsfreertos"/>
+    <option key="#pinconfiguration#" value="R7JA6W2DEDZNR.pincfg"/>
+    <option key="#FSPVersion#" value="2.2.1"/>
+    <option key="#SELECTED_TOOLCHAIN#" value="gcc-arm-embedded"/>
+    <option key="#ToolchainVersion#" value="13.2.1.arm-13-7"/>
+  </generalSettings>
+  <raBspConfiguration/>
+  <raClockConfiguration>
+    <node id="board.clock.xtal40m.freq" option="board.clock.xtal40m.freq.40m"/>
+    <node id="board.clock.xtal.freq" option="board.clock.xtal.freq.32k"/>
+    <node id="board.clock.rcx.freq" option="board.clock.rcx.freq.32k"/>
+    <node id="board.clock.xtal40m.source" option="board.clock.xtal40m.source.enabled"/>
+    <node id="board.clock.xtal.source" option="board.clock.xtal.source.enabled"/>
+    <node id="board.clock.rcx.source" option="board.clock.rcx.source.enabled"/>
+    <node id="board.clock.pll.source" option="board.clock.pll.source.xtal40m"/>
+    <node id="board.clock.pll.mul" option="board.clock.pll.mul.12"/>
+    <node id="board.clock.lp_clk.source" option="board.clock.lp_clk.source.xtal32k"/>
+    <node id="board.clock.pll_sys.source" option="board.clock.pll_sys.source.pll"/>
+    <node id="board.clock.pll_sys.mul" option="board.clock.pll_sys.mul.1_3"/>
+    <node id="board.clock.sys_clk.source" option="board.clock.sys_clk.source.xtal_sys"/>
+    <node id="board.clock.sys_clk.display" option="board.clock.sys_clk.display.value"/>
+    <node id="board.clock.hclk.div" option="board.clock.hclk.div.1"/>
+    <node id="board.clock.oqspiclk.div" option="board.clock.oqspiclk.div.2"/>
+    <node id="board.clock.qspiclk.div" option="board.clock.qspiclk.div.1"/>
+    <node id="board.clock.pll_spi.source" option="board.clock.pll_spi.source.disabled"/>
+    <node id="board.clock.pll_spi.mul" option="board.clock.pll_spi.mul.1_6"/>
+    <node id="board.clock.spi_clk.source" option="board.clock.spi_clk.source.xtal_sys"/>
+    <node id="board.clock.spi_clk.display" option="board.clock.spi_clk.display.value"/>
+    <node id="board.clock.spi1clk.display" option="board.clock.spi1clk.display.value"/>
+    <node id="board.clock.spi2clk.display" option="board.clock.spi2clk.display.value"/>
+    <node id="board.clock.pll_peri.source" option="board.clock.pll_peri.source.pll"/>
+    <node id="board.clock.pll_peri.div" option="board.clock.pll_peri.div.6"/>
+    <node id="board.clock.peri_clk.source" option="board.clock.peri_clk.source.xtal_sys"/>
+    <node id="board.clock.peri_clk.display" option="board.clock.peri_clk.display.value"/>
+    <node id="board.clock.i2c1.div" option="board.clock.i2c1.div.1"/>
+    <node id="board.clock.i2c2.div" option="board.clock.i2c2.div.1"/>
+    <node id="board.clock.i2c1clk.display" option="board.clock.i2c1clk.display.value"/>
+    <node id="board.clock.i2c2clk.display" option="board.clock.i2c2clk.display.value"/>
+    <node id="board.clock.uart1clk.display" option="board.clock.uart1clk.display.value"/>
+    <node id="board.clock.uart2clk.display" option="board.clock.uart2clk.display.value"/>
+    <node id="board.clock.uart3clk.display" option="board.clock.uart3clk.display.value"/>
+    <node id="board.clock.rtc_clk.display" option="board.clock.rtc_clk.display.value"/>
+    <node id="board.clock.wdog.div" option="board.clock.wdog.div.320"/>
+    <node id="board.clock.wdog.div.display" option="board.clock.wdog.div.display.value"/>
+  </raClockConfiguration>
+  <raPinConfiguration>
+    <pincfg active="true" name="" symbol="">
+      <configSetting altId="p116.dirctl.dirctl_in" configurationId="p116.dirctl"/>
+      <configSetting altId="p116.gpio_mode.gpio_mode_peripheral" configurationId="p116.gpio_mode"/>
+      <configSetting altId="p117.dirctl.dirctl_in" configurationId="p117.dirctl"/>
+      <configSetting altId="p117.gpio_mode.gpio_mode_peripheral" configurationId="p117.gpio_mode"/>
+      <configSetting altId="swd.swclk.p116" configurationId="swd.swclk" peripheral="SWD"/>
+      <configSetting altId="swd.swdio.p117" configurationId="swd.swdio" peripheral="SWD"/>
+    </pincfg>
+  </raPinConfiguration>
+</raConfiguration>

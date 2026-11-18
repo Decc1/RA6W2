@@ -1,0 +1,27 @@
+# ---- 编译输出 ----
+Debug/
+Release/
+*.o
+*.d
+*.elf
+*.map
+*.bin
+*.hex
+*.mot
+
+# ---- IDE 用户级文件 ----
+.settings/
+RemoteSystemsTempFiles/
+trash/
+*.launch
+
+# ---- 日志 ----
+JLinkLog.log
+*.log
+*.bak
+
+# ---- 系统杂项 ----
+Thumbs.db
+.DS_Store
+__pycache__/
+*.pyc
