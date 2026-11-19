@@ -5,8 +5,18 @@
 
 #include "../config/app_config.h"
 #include "../drivers/sht41.h"
+#include "../services/ble_protocol.h"
+#include "../services/device_command.h"
+#include "../services/device_identity.h"
+#include "../services/history_service.h"
+#include "../services/history_payload.h"
+#include "../services/history_storage.h"
+#include "../services/mqtt_protocol.h"
+#include "../services/ota_service.h"
 #include "../services/telemetry.h"
 #include "../services/telemetry_payload.h"
+#include "../services/wifi_provisioning.h"
+#include "../services/wifi_service.h"
 
 /* FreeRTOS 静态任务内存回调。 */
 void vApplicationGetIdleTaskMemory(StaticTask_t ** ppx_idle_task_tcb_buffer,
@@ -50,6 +60,7 @@ static void app_sample_task(void * p_argument)
         if (HYGRO_STATUS_OK == status)
         {
             telemetry_record_success(&measurement, uptime_ms);
+            (void) history_service_on_measurement(&measurement, uptime_ms);
         }
         else
         {
@@ -66,6 +77,25 @@ void app_main(void)
     telemetry_init();
     configASSERT(HYGRO_STATUS_OK == sht41_init());
     configASSERT(telemetry_payload_self_test());
+    configASSERT(ble_protocol_self_test());
+    configASSERT(device_identity_self_test());
+    configASSERT(wifi_provisioning_self_test());
+    configASSERT(wifi_service_self_test());
+    configASSERT(mqtt_protocol_self_test());
+    configASSERT(ota_service_self_test());
+    configASSERT(device_command_self_test());
+    configASSERT(history_service_self_test());
+    configASSERT(history_storage_self_test());
+    configASSERT(history_payload_self_test());
+
+    /* 命令自检会写入一笔模拟遥测数据；进入正常业务前必须清除。 */
+    telemetry_init();
+    device_identity_init(NULL);
+    device_command_init();
+    ota_service_init(NULL);
+    /* 当前使用 RAM 模拟后端；真实 Flash 到位后只替换 history_storage 的内部实现。 */
+    history_storage_init();
+    history_service_init(history_storage_append);
 
     g_sample_task_handle = xTaskCreateStatic(app_sample_task,
                                               "sample",

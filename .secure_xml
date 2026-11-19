@@ -54,6 +54,13 @@
   </raClockConfiguration>
   <raPinConfiguration>
     <pincfg active="true" name="" symbol="">
+      <configSetting altId="i2c1.i2c1_scl.p001" configurationId="i2c1.i2c1_scl" peripheral="I2C1"/>
+      <configSetting altId="i2c1.i2c1_sda.p000" configurationId="i2c1.i2c1_sda" peripheral="I2C1"/>
+      <configSetting altId="p000.dirctl.dirctl_in" configurationId="p000.dirctl"/>
+      <configSetting altId="p000.gpio_mode.gpio_mode_peripheral" configurationId="p000.gpio_mode"/>
+      <configSetting altId="p000.sr.sr.fast" configurationId="p000.sr"/>
+      <configSetting altId="p001.dirctl.dirctl_in" configurationId="p001.dirctl"/>
+      <configSetting altId="p001.gpio_mode.gpio_mode_peripheral" configurationId="p001.gpio_mode"/>
       <configSetting altId="p116.dirctl.dirctl_in" configurationId="p116.dirctl"/>
       <configSetting altId="p116.gpio_mode.gpio_mode_peripheral" configurationId="p116.gpio_mode"/>
       <configSetting altId="p117.dirctl.dirctl_in" configurationId="p117.dirctl"/>

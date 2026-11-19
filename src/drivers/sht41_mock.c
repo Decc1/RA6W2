@@ -1,12 +1,12 @@
-#include "sht41.h"
+#include "sht41_mock.h"
 #include "sht41_codec.h"
 
 #include <stddef.h>
 
 static uint32_t g_mock_sequence;
 
-/* 无开发板时使用模拟数据；真实硬件到位后替换为 sht41_i2c.c。 */
-hygro_status_t sht41_init(void)
+/* 无开发板时使用模拟数据；真实硬件到位后由 sht41_bind_i2c_bus() 接入真实总线。 */
+hygro_status_t sht41_mock_init(void)
 {
     g_mock_sequence = 0U;
 
@@ -14,7 +14,7 @@ hygro_status_t sht41_init(void)
     return sht41_codec_self_test();
 }
 
-hygro_status_t sht41_read(hygro_measurement_t * p_measurement)
+hygro_status_t sht41_mock_read(hygro_measurement_t * p_measurement)
 {
     static const int16_t  temperature_offset[] = {0, 8, 15, 20, 12, 3, -5, -10};
     static const uint16_t humidity_offset[]    = {0U, 18U, 35U, 28U, 10U, 6U, 22U, 40U};
