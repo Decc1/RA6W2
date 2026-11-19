@@ -17,6 +17,7 @@
 
 static uint8_t const g_device_model[] = "HYGRO-RA6W2";
 
+/* 作用：按命令码执行设备信息、实时数据、历史数据或配网业务。 */
 static ble_protocol_reply_status_t device_command_execute(ble_protocol_command_t const * p_command,
                                                            bool                          encrypted_and_bonded,
                                                            uint8_t *                     p_payload,
@@ -106,6 +107,7 @@ static ble_protocol_reply_status_t device_command_execute(ble_protocol_command_t
     }
 }
 
+/* 作用：初始化 BLE 命令分发依赖的 Wi-Fi 服务和配网事务模块。 */
 void device_command_init(void)
 {
     /* 真实 Wi-Fi 服务准备好后，在此传入对应的硬件适配回调。 */
@@ -113,6 +115,7 @@ void device_command_init(void)
     wifi_provisioning_init(wifi_service_commit_credentials);
 }
 
+/* 作用：完成一帧 BLE 控制命令的解析、执行和标准回复帧编码。 */
 bool device_command_handle_ble_write(uint8_t const * p_request,
                                      size_t          request_length,
                                      bool            encrypted_and_bonded,
@@ -148,6 +151,7 @@ bool device_command_handle_ble_write(uint8_t const * p_request,
                                      p_reply_length);
 }
 
+/* 作用：验证实时读取、非法帧和历史曲线分页读取三条命令链路。 */
 bool device_command_self_test(void)
 {
     static uint8_t const request[] =

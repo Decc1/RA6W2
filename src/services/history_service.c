@@ -35,12 +35,14 @@ typedef struct st_history_service_context
 static history_service_context_t g_history;
 
 /* 将 uptime 对齐到 15 分钟窗口起点；系统 uptime 回绕时允许按 uint32_t 自然回绕。 */
+/* 作用：将当前运行时间向下对齐到所属 15 分钟聚合窗口的起点。 */
 static uint32_t history_window_start_ms(uint32_t uptime_ms)
 {
     return (uptime_ms / APP_HISTORY_WINDOW_MS) * APP_HISTORY_WINDOW_MS;
 }
 
 /* 有符号平均值按“四舍五入到最接近整数”计算，避免负温度被错误向零偏移。 */
+/* 作用：按四舍五入规则计算窗口内温度平均值，正确处理负温度。 */
 static int16_t history_average_temperature(int64_t sum, uint16_t sample_count)
 {
     int64_t average;
@@ -57,11 +59,13 @@ static int16_t history_average_temperature(int64_t sum, uint16_t sample_count)
     return (int16_t) average;
 }
 
+/* 作用：按四舍五入规则计算窗口内湿度平均值。 */
 static uint16_t history_average_humidity(uint32_t sum, uint16_t sample_count)
 {
     return (uint16_t) ((sum + ((uint32_t) sample_count / 2U)) / (uint32_t) sample_count);
 }
 
+/* 作用：用当前第一笔有效采样数据创建一个新的历史聚合窗口。 */
 static void history_start_window(hygro_measurement_t const * p_measurement, uint32_t window_start_ms)
 {
     history_accumulator_t * p_accumulator = &g_history.accumulator;
@@ -79,6 +83,7 @@ static void history_start_window(hygro_measurement_t const * p_measurement, uint
     p_accumulator->active                  = true;
 }
 
+/* 作用：将一笔有效采样累加到当前窗口，同时维护最小值和最大值。 */
 static bool history_add_to_window(hygro_measurement_t const * p_measurement)
 {
     history_accumulator_t * p_accumulator = &g_history.accumulator;
@@ -113,6 +118,7 @@ static bool history_add_to_window(hygro_measurement_t const * p_measurement)
     return true;
 }
 
+/* 作用：把当前窗口的统计结果整理成一条待存储的 15 分钟历史记录。 */
 static void history_make_pending_record(void)
 {
     history_accumulator_t const * p_accumulator = &g_history.accumulator;
@@ -132,12 +138,14 @@ static void history_make_pending_record(void)
     g_history.has_pending_record          = true;
 }
 
+/* 作用：清空历史聚合状态，并注册记录完成后的存储回调。 */
 void history_service_init(history_append_callback_t append_callback)
 {
     (void) memset(&g_history, 0, sizeof(g_history));
     g_history.append_callback = append_callback;
 }
 
+/* 作用：尝试再次写入上次存储失败而暂存在 RAM 中的历史记录。 */
 bool history_service_flush_pending(void)
 {
     if (!g_history.has_pending_record)
@@ -155,6 +163,7 @@ bool history_service_flush_pending(void)
     return true;
 }
 
+/* 作用：接收一笔实时采样并完成窗口累加、跨窗口结算和待存储处理。 */
 bool history_service_on_measurement(hygro_measurement_t const * p_measurement, uint32_t uptime_ms)
 {
     uint32_t const window_start_ms = history_window_start_ms(uptime_ms);
@@ -193,6 +202,7 @@ bool history_service_on_measurement(hygro_measurement_t const * p_measurement, u
     return true;
 }
 
+/* 作用：查询是否仍有因存储失败而等待重试的历史记录。 */
 bool history_service_has_pending_record(void)
 {
     return g_history.has_pending_record;
@@ -202,6 +212,7 @@ static history_record_t g_history_test_record;
 static bool             g_history_test_store_enabled;
 static uint32_t         g_history_test_write_count;
 
+/* 作用：历史服务自检使用的模拟存储回调，可模拟写入成功或失败。 */
 static bool history_test_append(history_record_t const * p_record)
 {
     if (!g_history_test_store_enabled || (NULL == p_record))
@@ -214,6 +225,7 @@ static bool history_test_append(history_record_t const * p_record)
     return true;
 }
 
+/* 作用：验证窗口聚合、均值极值计算及存储失败后的重试逻辑。 */
 bool history_service_self_test(void)
 {
     hygro_measurement_t measurement =

@@ -17,6 +17,7 @@ typedef struct st_ble_service_context
 
 static ble_service_context_t g_ble_service;
 
+/* 作用：初始化 BLE 服务层状态，并保存上层命令处理回调。 */
 ble_service_status_t ble_service_init(ble_command_callback_t command_callback)
 {
     g_ble_service.command_callback = command_callback;
@@ -28,6 +29,7 @@ ble_service_status_t ble_service_init(ble_command_callback_t command_callback)
     return BLE_SERVICE_OK;
 }
 
+/* 作用：请求启动 BLE 广播和 GATT 服务；无线协议栈未接入时明确返回未就绪。 */
 ble_service_status_t ble_service_start(void)
 {
     if (!g_ble_service.initialized)
@@ -42,6 +44,7 @@ ble_service_status_t ble_service_start(void)
     return BLE_SERVICE_NOT_READY;
 }
 
+/* 作用：停止 BLE 服务并清除连接、订阅通知等会话状态。 */
 ble_service_status_t ble_service_stop(void)
 {
     if (!g_ble_service.initialized)
@@ -56,22 +59,26 @@ ble_service_status_t ble_service_stop(void)
     return BLE_SERVICE_OK;
 }
 
+/* 作用：由真实 BLE 连接事件调用，更新手机是否已连接。 */
 void ble_service_set_connected(bool connected)
 {
     g_ble_service.connected      = connected;
     g_ble_service.notify_enabled = connected && g_ble_service.notify_enabled;
 }
 
+/* 作用：由 CCCD 配置事件调用，记录 App 是否订阅实时数据 Notify。 */
 void ble_service_set_notify_enabled(bool enabled)
 {
     g_ble_service.notify_enabled = enabled && g_ble_service.connected;
 }
 
+/* 作用：供应用层查询当前是否存在有效 BLE 连接。 */
 bool ble_service_is_connected(void)
 {
     return g_ble_service.connected;
 }
 
+/* 作用：检查 BLE 会话状态后发送实时测量 Notify；当前仅保留接口。 */
 ble_service_status_t ble_service_notify_measurement(hygro_measurement_t const * p_measurement)
 {
     if (NULL == p_measurement)
@@ -99,6 +106,7 @@ ble_service_status_t ble_service_notify_measurement(hygro_measurement_t const * 
     return BLE_SERVICE_NOT_READY;
 }
 
+/* 作用：接收控制 Characteristic 的 Write 数据，并转交设备命令处理层。 */
 ble_service_status_t ble_service_handle_write(uint8_t const * p_command,
                                               size_t            command_length)
 {

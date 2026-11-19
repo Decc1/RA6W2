@@ -11,12 +11,14 @@ static sht41_i2c_bus_t g_sht41_bus;
 static bool             g_sht41_bus_bound;
 static uint32_t         g_sht41_sample_sequence;
 
+/* 作用：检查真实 I2C 适配层是否提供了完整的读、写和延时回调。 */
 static bool sht41_bus_is_valid(sht41_i2c_bus_t const * p_bus)
 {
     return (NULL != p_bus) && (NULL != p_bus->write) && (NULL != p_bus->read) &&
            (NULL != p_bus->delay_ms);
 }
 
+/* 作用：向 SHT41 写入一个单字节命令，例如软复位或开始测量。 */
 static hygro_status_t sht41_write_command(uint8_t command)
 {
     return g_sht41_bus.write(g_sht41_bus.p_context,
@@ -25,6 +27,7 @@ static hygro_status_t sht41_write_command(uint8_t command)
                              sizeof(command));
 }
 
+/* 作用：完成一次真实 I2C 测量、等待转换并交由 codec 校验和换算结果。 */
 static hygro_status_t sht41_read_measurement_once(hygro_measurement_t * p_measurement)
 {
     uint8_t             command = SHT41_COMMAND_MEASURE_HIGH_PRECISION;
@@ -60,6 +63,7 @@ static hygro_status_t sht41_read_measurement_once(hygro_measurement_t * p_measur
                                     p_measurement);
 }
 
+/* 作用：绑定或解绑底层 I2C 总线；解绑后驱动自动回退到模拟传感器。 */
 hygro_status_t sht41_bind_i2c_bus(sht41_i2c_bus_t const * p_bus)
 {
     if (NULL == p_bus)
@@ -80,6 +84,7 @@ hygro_status_t sht41_bind_i2c_bus(sht41_i2c_bus_t const * p_bus)
     return HYGRO_STATUS_OK;
 }
 
+/* 作用：初始化 SHT41；真实硬件执行软复位，无板阶段初始化模拟数据源。 */
 hygro_status_t sht41_init(void)
 {
     hygro_status_t status;
@@ -102,6 +107,7 @@ hygro_status_t sht41_init(void)
     return HYGRO_STATUS_OK;
 }
 
+/* 作用：读取一笔温湿度数据，并对允许重试的 I2C/CRC 异常执行有限重试。 */
 hygro_status_t sht41_read(hygro_measurement_t * p_measurement)
 {
     hygro_status_t status = HYGRO_STATUS_NOT_READY;

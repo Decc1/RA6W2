@@ -6,6 +6,7 @@
 #include "telemetry_payload.h"
 #include "history_payload.h"
 
+/* 作用：校验设备 ID 或命令 ID 是否适合作为 MQTT Topic/JSON 标识符。 */
 static bool mqtt_protocol_is_identifier(char const * p_text)
 {
     size_t length = 0U;
@@ -34,6 +35,7 @@ static bool mqtt_protocol_is_identifier(char const * p_text)
     return (0U != length);
 }
 
+/* 作用：将 Topic 类型映射为最终 Topic 的末级名称。 */
 static char const * mqtt_protocol_get_topic_leaf(mqtt_protocol_topic_type_t topic_type)
 {
     switch (topic_type)
@@ -55,6 +57,7 @@ static char const * mqtt_protocol_get_topic_leaf(mqtt_protocol_topic_type_t topi
     }
 }
 
+/* 作用：组合生成设备遥测、历史、命令或回复使用的 MQTT Topic。 */
 bool mqtt_protocol_build_topic(char *                     p_topic,
                                size_t                     topic_size,
                                char const *               p_device_id,
@@ -78,6 +81,7 @@ bool mqtt_protocol_build_topic(char *                     p_topic,
     return (result >= 0) && ((size_t) result < topic_size);
 }
 
+/* 作用：把最新遥测快照转交给统一的 MQTT JSON 编码器。 */
 bool mqtt_protocol_encode_telemetry(telemetry_snapshot_t const * p_snapshot,
                                     char *                       p_json,
                                     size_t                       json_size,
@@ -86,6 +90,7 @@ bool mqtt_protocol_encode_telemetry(telemetry_snapshot_t const * p_snapshot,
     return telemetry_encode_mqtt_json(p_snapshot, p_json, json_size, p_written_length);
 }
 
+/* 作用：把一条 15 分钟历史记录转交给统一的 MQTT JSON 编码器。 */
 bool mqtt_protocol_encode_history(history_record_t const * p_record,
                                   char *                   p_json,
                                   size_t                   json_size,
@@ -94,6 +99,7 @@ bool mqtt_protocol_encode_history(history_record_t const * p_record,
     return history_payload_encode_mqtt_json(p_record, p_json, json_size, p_written_length);
 }
 
+/* 作用：生成设备对云端控制命令的 MQTT 执行结果 JSON。 */
 bool mqtt_protocol_encode_reply(char const *                 p_command_id,
                                 ble_protocol_reply_status_t status,
                                 char *                       p_json,
@@ -122,6 +128,7 @@ bool mqtt_protocol_encode_reply(char const *                 p_command_id,
     return true;
 }
 
+/* 作用：验证 Topic 拼接、命令回复 JSON 和遥测编码的基本格式。 */
 bool mqtt_protocol_self_test(void)
 {
     static char const expected_topic[] = "hygro/v1/DEV-001/telemetry";

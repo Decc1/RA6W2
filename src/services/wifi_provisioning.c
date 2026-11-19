@@ -23,12 +23,14 @@ typedef struct st_wifi_provisioning_context
 
 static wifi_provisioning_context_t g_wifi_provisioning;
 
+/* 作用：从 BLE 配网命令的载荷中读取小端事务 ID。 */
 static uint16_t wifi_provisioning_read_u16_le(uint8_t const * p_data)
 {
     return (uint16_t) p_data[0] | ((uint16_t) p_data[1] << 8U);
 }
 
 /* 即使编译器优化，也要逐字节清除暂存的敏感凭据。 */
+/* 作用：逐字节清除 RAM 中暂存的 Wi-Fi 密码，避免敏感信息残留。 */
 static void wifi_provisioning_clear_sensitive_data(void)
 {
     volatile uint8_t * p_data = (volatile uint8_t *) &g_wifi_provisioning.credentials;
@@ -40,6 +42,7 @@ static void wifi_provisioning_clear_sensitive_data(void)
     }
 }
 
+/* 作用：结束当前配网事务并清除事务号、长度计数和暂存凭据。 */
 static void wifi_provisioning_reset_transaction(void)
 {
     wifi_provisioning_clear_sensitive_data();
@@ -49,6 +52,7 @@ static void wifi_provisioning_reset_transaction(void)
     g_wifi_provisioning.active = false;
 }
 
+/* 作用：校验仅携带事务 ID 的 COMMIT 或 ABORT 命令载荷。 */
 static bool wifi_provisioning_has_transaction(uint8_t const * p_payload,
                                               uint8_t         payload_length,
                                               uint16_t *      p_transaction_id)
@@ -63,6 +67,7 @@ static bool wifi_provisioning_has_transaction(uint8_t const * p_payload,
     return true;
 }
 
+/* 作用：处理配网 BEGIN 命令，校验长度并创建新的凭据接收事务。 */
 static ble_protocol_reply_status_t wifi_provisioning_begin(ble_protocol_command_t const * p_command)
 {
     uint16_t transaction_id;
@@ -97,6 +102,7 @@ static ble_protocol_reply_status_t wifi_provisioning_begin(ble_protocol_command_
     return BLE_PROTOCOL_REPLY_OK;
 }
 
+/* 作用：按顺序接收 SSID 和密码分片，防止乱序、越界或跨事务写入。 */
 static ble_protocol_reply_status_t wifi_provisioning_write_chunk(ble_protocol_command_t const * p_command)
 {
     uint16_t transaction_id;
@@ -142,6 +148,7 @@ static ble_protocol_reply_status_t wifi_provisioning_write_chunk(ble_protocol_co
     return BLE_PROTOCOL_REPLY_OK;
 }
 
+/* 作用：确认凭据已完整接收，并调用 Wi-Fi 服务安全保存和发起连接。 */
 static ble_protocol_reply_status_t wifi_provisioning_commit(ble_protocol_command_t const * p_command)
 {
     uint16_t                     transaction_id;
@@ -167,12 +174,14 @@ static ble_protocol_reply_status_t wifi_provisioning_commit(ble_protocol_command
     return result;
 }
 
+/* 作用：初始化 BLE 配网事务服务，并注册凭据提交回调。 */
 void wifi_provisioning_init(wifi_provisioning_commit_callback_t commit_callback)
 {
     g_wifi_provisioning.commit_callback = commit_callback;
     wifi_provisioning_reset_transaction();
 }
 
+/* 作用：仅在已加密、已绑定的 BLE 链路上分发配网相关命令。 */
 ble_protocol_reply_status_t wifi_provisioning_handle_command(ble_protocol_command_t const * p_command,
                                                               bool                         encrypted_and_bonded)
 {
@@ -219,11 +228,13 @@ ble_protocol_reply_status_t wifi_provisioning_handle_command(ble_protocol_comman
     }
 }
 
+/* 作用：主动取消当前配网事务，并从内存中擦除未提交的凭据。 */
 void wifi_provisioning_abort(void)
 {
     wifi_provisioning_reset_transaction();
 }
 
+/* 作用：配网自检使用的模拟提交回调，验证收到的 SSID 和密码内容。 */
 static ble_protocol_reply_status_t wifi_provisioning_test_commit(wifi_credentials_t const * p_credentials)
 {
     static uint8_t const expected_ssid[] = "HomeWiFi";
@@ -241,6 +252,7 @@ static ble_protocol_reply_status_t wifi_provisioning_test_commit(wifi_credential
     return BLE_PROTOCOL_REPLY_OK;
 }
 
+/* 作用：验证配网权限控制、BEGIN/CHUNK/COMMIT 事务和凭据拼接流程。 */
 bool wifi_provisioning_self_test(void)
 {
     static uint8_t const begin_payload[] = {0x34U, 0x12U, 0x08U, 0x08U};

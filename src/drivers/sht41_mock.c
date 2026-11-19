@@ -6,6 +6,7 @@
 static uint32_t g_mock_sequence;
 
 /* 无开发板时使用模拟数据；真实硬件到位后由 sht41_bind_i2c_bus() 接入真实总线。 */
+/* 作用：初始化模拟传感器，并先验证真实传感器共用的 codec 算法。 */
 hygro_status_t sht41_mock_init(void)
 {
     g_mock_sequence = 0U;
@@ -14,6 +15,7 @@ hygro_status_t sht41_mock_init(void)
     return sht41_codec_self_test();
 }
 
+/* 作用：产生稳定、可重复变化的模拟温湿度数据，供无开发板阶段联调。 */
 hygro_status_t sht41_mock_read(hygro_measurement_t * p_measurement)
 {
     static const int16_t  temperature_offset[] = {0, 8, 15, 20, 12, 3, -5, -10};

@@ -38,11 +38,13 @@ static StaticTask_t g_timer_task_tcb;
 static StackType_t  g_timer_task_stack[configTIMER_TASK_STACK_DEPTH];
 
 /* 将 FreeRTOS 时钟节拍转换为系统启动后的毫秒数；溢出后允许自然回绕。 */
+/* 作用：把 FreeRTOS 的系统节拍换算为毫秒运行时间，供采样和历史记录统一使用。 */
 static uint32_t app_get_uptime_ms(void)
 {
     return (uint32_t) ((uint32_t) xTaskGetTickCount() * (uint32_t) portTICK_PERIOD_MS);
 }
 
+/* 作用：按固定周期读取 SHT41，并把成功或失败结果写入遥测与历史服务。 */
 static void app_sample_task(void * p_argument)
 {
     TickType_t last_wake_time = xTaskGetTickCount();
@@ -72,6 +74,7 @@ static void app_sample_task(void * p_argument)
     }
 }
 
+/* 作用：初始化全部应用服务、执行无硬件自检、创建采样任务并启动调度器。 */
 void app_main(void)
 {
     telemetry_init();
@@ -115,6 +118,7 @@ void app_main(void)
     }
 }
 
+/* 作用：为 FreeRTOS Idle 任务提供静态任务控制块和栈，避免动态分配内存。 */
 void vApplicationGetIdleTaskMemory(StaticTask_t ** ppx_idle_task_tcb_buffer,
                                    StackType_t **  ppx_idle_task_stack_buffer,
                                    configSTACK_DEPTH_TYPE * p_idle_task_stack_size)
@@ -124,6 +128,7 @@ void vApplicationGetIdleTaskMemory(StaticTask_t ** ppx_idle_task_tcb_buffer,
     *p_idle_task_stack_size     = configMINIMAL_STACK_SIZE;
 }
 
+/* 作用：为 FreeRTOS 软件定时器服务任务提供静态任务控制块和栈。 */
 void vApplicationGetTimerTaskMemory(StaticTask_t ** ppx_timer_task_tcb_buffer,
                                     StackType_t **  ppx_timer_task_stack_buffer,
                                     configSTACK_DEPTH_TYPE * p_timer_task_stack_size)
@@ -133,6 +138,7 @@ void vApplicationGetTimerTaskMemory(StaticTask_t ** ppx_timer_task_tcb_buffer,
     *p_timer_task_stack_size     = configTIMER_TASK_STACK_DEPTH;
 }
 
+/* 作用：捕获任务栈溢出；当前停止调度以便调试器定位问题。 */
 void vApplicationStackOverflowHook(TaskHandle_t x_task, char * pc_task_name)
 {
     (void) x_task;

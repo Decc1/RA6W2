@@ -25,16 +25,19 @@
 #define SHT41_HUMIDITY_CRC_INDEX       (5U)
 #define SHT41_SIGNAL_LENGTH            (2U)
 
+/* 作用：将 SHT41 返回的两个大端字节拼接为 16 位原始测量值。 */
 static uint16_t sht41_read_u16_be(uint8_t const * p_data)
 {
     return (uint16_t) (((uint16_t) p_data[0] << 8U) | p_data[1]);
 }
 
+/* 作用：进行正数四舍五入除法，避免浮点运算并保留换算精度。 */
 static int32_t sht41_round_divide(int32_t numerator, int32_t denominator)
 {
     return (numerator + (denominator / 2L)) / denominator;
 }
 
+/* 作用：按 SHT4x 规定的 CRC-8 参数计算数据校验值。 */
 uint8_t sht41_crc8_calculate(uint8_t const * p_data, size_t length)
 {
     uint8_t crc = SHT41_CRC8_INITIAL_VALUE;
@@ -64,11 +67,13 @@ uint8_t sht41_crc8_calculate(uint8_t const * p_data, size_t length)
     return crc;
 }
 
+/* 作用：比较计算出的 CRC-8 与传感器帧中的 CRC 字节是否一致。 */
 bool sht41_crc8_is_valid(uint8_t const * p_data, size_t length, uint8_t expected_crc)
 {
     return (NULL != p_data) && (sht41_crc8_calculate(p_data, length) == expected_crc);
 }
 
+/* 作用：校验 6 字节原始帧，并换算为 0.01 ℃、0.01 %RH 的业务数据。 */
 hygro_status_t sht41_decode_measurement(uint8_t const *       p_frame,
                                         uint16_t               battery_mv,
                                         uint32_t               sample_sequence,
@@ -123,6 +128,7 @@ hygro_status_t sht41_decode_measurement(uint8_t const *       p_frame,
     return HYGRO_STATUS_OK;
 }
 
+/* 作用：用固定测试帧验证 CRC、温湿度换算和错误帧拦截逻辑。 */
 hygro_status_t sht41_codec_self_test(void)
 {
     static uint8_t const valid_frame[SHT41_MEASUREMENT_FRAME_SIZE] =

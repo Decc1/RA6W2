@@ -5,6 +5,7 @@
 static char g_device_id[DEVICE_IDENTITY_MAX_LENGTH + 1U];
 static bool g_device_id_ready;
 
+/* 作用：检查设备 ID 是否非空且只包含允许的字母、数字、下划线和连字符。 */
 static bool device_identity_is_valid(char const * p_device_id)
 {
     size_t length = 0U;
@@ -33,6 +34,7 @@ static bool device_identity_is_valid(char const * p_device_id)
     return (0U != length);
 }
 
+/* 作用：通过硬件适配回调读取设备唯一 ID，并在格式合法时缓存。 */
 void device_identity_init(device_identity_read_callback_t read_callback)
 {
     (void) memset(g_device_id, 0, sizeof(g_device_id));
@@ -54,6 +56,7 @@ void device_identity_init(device_identity_read_callback_t read_callback)
     (void) memset(g_device_id, 0, sizeof(g_device_id));
 }
 
+/* 作用：向调用方安全复制已就绪的设备 ID。 */
 bool device_identity_get(char * p_device_id, size_t device_id_size)
 {
     size_t const required_size = strlen(g_device_id) + 1U;
@@ -67,6 +70,7 @@ bool device_identity_get(char * p_device_id, size_t device_id_size)
     return true;
 }
 
+/* 作用：提供固定测试 ID，供本模块自检模拟底层读取回调。 */
 static bool device_identity_test_read(char * p_device_id, size_t device_id_size)
 {
     static char const test_id[] = "HYGRO-000001";
@@ -80,6 +84,7 @@ static bool device_identity_test_read(char * p_device_id, size_t device_id_size)
     return true;
 }
 
+/* 作用：验证设备 ID 的读取、缓存和未初始化保护逻辑。 */
 bool device_identity_self_test(void)
 {
     char device_id[DEVICE_IDENTITY_MAX_LENGTH + 1U];

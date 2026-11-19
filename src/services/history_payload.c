@@ -16,12 +16,14 @@
 #define HISTORY_OFFSET_HUMIDITY_MAXIMUM     (14U)
 #define HISTORY_OFFSET_SAMPLE_COUNT         (16U)
 
+/* 作用：将 16 位字段以小端格式写入历史 BLE 载荷。 */
 static void history_payload_write_u16_le(uint8_t * p_destination, uint16_t value)
 {
     p_destination[0] = (uint8_t) value;
     p_destination[1] = (uint8_t) (value >> 8U);
 }
 
+/* 作用：将 32 位字段以小端格式写入历史 BLE 载荷。 */
 static void history_payload_write_u32_le(uint8_t * p_destination, uint32_t value)
 {
     p_destination[0] = (uint8_t) value;
@@ -30,6 +32,7 @@ static void history_payload_write_u32_le(uint8_t * p_destination, uint32_t value
     p_destination[3] = (uint8_t) (value >> 24U);
 }
 
+/* 作用：把一条 15 分钟历史聚合记录编码为固定 18 字节 BLE 二进制数据。 */
 bool history_payload_encode_ble_record(history_record_t const * p_record,
                                        uint8_t *                p_payload,
                                        size_t                   payload_size)
@@ -58,6 +61,7 @@ bool history_payload_encode_ble_record(history_record_t const * p_record,
     return true;
 }
 
+/* 作用：按索引分页读取历史记录，并封装为一帧 BLE 回复载荷。 */
 bool history_payload_encode_ble_page(uint16_t first_index,
                                      uint8_t  requested_count,
                                      uint8_t * p_payload,
@@ -104,6 +108,7 @@ bool history_payload_encode_ble_page(uint16_t first_index,
     return true;
 }
 
+/* 作用：把一条历史聚合记录编码为云端 MQTT 上报使用的 JSON。 */
 bool history_payload_encode_mqtt_json(history_record_t const * p_record,
                                       char *                   p_json,
                                       size_t                   json_size,
@@ -139,6 +144,7 @@ bool history_payload_encode_mqtt_json(history_record_t const * p_record,
     return true;
 }
 
+/* 作用：验证历史 BLE 二进制格式、分页边界和 MQTT JSON 格式。 */
 bool history_payload_self_test(void)
 {
     static uint8_t const expected_record[HISTORY_BLE_RECORD_SIZE] =

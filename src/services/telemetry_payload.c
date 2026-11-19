@@ -18,12 +18,14 @@
  * 将 16 位和 32 位数据显式写成小端序。
  * 不依赖 MCU 的字节序，也避免直接强制转换指针带来的对齐问题。
  */
+/* 作用：将 16 位遥测字段按 BLE 规定的小端序写入输出缓冲区。 */
 static void telemetry_write_u16_le(uint8_t * p_destination, uint16_t value)
 {
     p_destination[0] = (uint8_t) value;
     p_destination[1] = (uint8_t) (value >> 8U);
 }
 
+/* 作用：将 32 位遥测字段按 BLE 规定的小端序写入输出缓冲区。 */
 static void telemetry_write_u32_le(uint8_t * p_destination, uint32_t value)
 {
     p_destination[0] = (uint8_t) value;
@@ -32,6 +34,7 @@ static void telemetry_write_u32_le(uint8_t * p_destination, uint32_t value)
     p_destination[3] = (uint8_t) (value >> 24U);
 }
 
+/* 作用：把最新遥测快照编码为实时数据 Characteristic 的 12 字节 BLE 载荷。 */
 bool telemetry_encode_ble_payload(telemetry_snapshot_t const * p_snapshot,
                                   uint8_t *                    p_payload,
                                   size_t                       payload_size)
@@ -58,6 +61,7 @@ bool telemetry_encode_ble_payload(telemetry_snapshot_t const * p_snapshot,
     return true;
 }
 
+/* 作用：把最新遥测快照编码为上报云端使用的 MQTT JSON。 */
 bool telemetry_encode_mqtt_json(telemetry_snapshot_t const * p_snapshot,
                                  char *                       p_json,
                                  size_t                       json_size,
@@ -98,6 +102,7 @@ bool telemetry_encode_mqtt_json(telemetry_snapshot_t const * p_snapshot,
     return true;
 }
 
+/* 作用：验证实时 BLE 二进制数据和 MQTT JSON 的字段顺序及编码结果。 */
 bool telemetry_payload_self_test(void)
 {
     static uint8_t const expected_ble_payload[TELEMETRY_BLE_PAYLOAD_SIZE] =

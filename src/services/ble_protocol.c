@@ -10,17 +10,20 @@
 #define BLE_PROTOCOL_REPLY_OFFSET_STATUS   (4U)
 #define BLE_PROTOCOL_REPLY_OFFSET_LENGTH   (5U)
 
+/* 作用：从 BLE 协议帧读取一个小端 16 位整数。 */
 static uint16_t ble_protocol_read_u16_le(uint8_t const * p_data)
 {
     return (uint16_t) p_data[0] | ((uint16_t) p_data[1] << 8U);
 }
 
+/* 作用：把 16 位整数以小端格式写入 BLE 协议帧。 */
 static void ble_protocol_write_u16_le(uint8_t * p_data, uint16_t value)
 {
     p_data[0] = (uint8_t) value;
     p_data[1] = (uint8_t) (value >> 8U);
 }
 
+/* 作用：解析 App 写入控制 Characteristic 的帧，并完成版本和长度校验。 */
 ble_protocol_reply_status_t ble_protocol_parse_control_write(uint8_t const *         p_data,
                                                               size_t                  data_length,
                                                               ble_protocol_command_t * p_command)
@@ -57,6 +60,7 @@ ble_protocol_reply_status_t ble_protocol_parse_control_write(uint8_t const *    
     return BLE_PROTOCOL_REPLY_OK;
 }
 
+/* 作用：把命令执行结果编码为回复 Characteristic 可通知给 App 的标准帧。 */
 bool ble_protocol_encode_reply(uint8_t                    command_code,
                                uint16_t                   command_id,
                                ble_protocol_reply_status_t status,
@@ -89,6 +93,7 @@ bool ble_protocol_encode_reply(uint8_t                    command_code,
     return true;
 }
 
+/* 作用：验证 BLE 控制帧解析、回复帧编码及非法长度识别。 */
 bool ble_protocol_self_test(void)
 {
     static uint8_t const command_frame[] =
