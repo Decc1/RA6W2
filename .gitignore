@@ -20,6 +20,14 @@ JLinkLog.log
 *.log
 *.bak
 
+# ---- Credentials and private keys (do not commit) ----
+yes
+yes.pub
+*.key
+*.pem
+*.p12
+*.pfx
+
 # ---- 系统杂项 ----
 Thumbs.db
 .DS_Store
