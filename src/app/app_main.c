@@ -4,8 +4,10 @@
 #include "task.h"
 
 #include "../config/app_config.h"
+#include "../drivers/battery.h"
 #include "../drivers/sht41.h"
 #include "../services/ble_protocol.h"
+#include "../services/ble_service.h"
 #include "../services/device_command.h"
 #include "../services/device_identity.h"
 #include "../services/history_service.h"
@@ -17,6 +19,8 @@
 #include "../services/telemetry_payload.h"
 #include "../services/wifi_provisioning.h"
 #include "../services/wifi_service.h"
+
+#include "../services/hygro_log.h"
 
 /* FreeRTOS 静态任务内存回调。 */
 void vApplicationGetIdleTaskMemory(StaticTask_t ** ppx_idle_task_tcb_buffer,
@@ -30,6 +34,9 @@ void vApplicationGetTimerTaskMemory(StaticTask_t ** ppx_timer_task_tcb_buffer,
 static StaticTask_t g_sample_task_tcb;
 static StackType_t  g_sample_task_stack[APP_SAMPLE_TASK_STACK_WORDS];
 static TaskHandle_t g_sample_task_handle;
+static StaticTask_t g_ble_notify_task_tcb;
+static StackType_t  g_ble_notify_task_stack[APP_BLE_NOTIFY_TASK_STACK_WORDS];
+static TaskHandle_t g_ble_notify_task_handle;
 
 /* RAFW 配置要求应用提供 Idle 和 Timer 服务任务的静态内存。 */
 static StaticTask_t g_idle_task_tcb;
@@ -61,8 +68,17 @@ static void app_sample_task(void * p_argument)
 
         if (HYGRO_STATUS_OK == status)
         {
+            if (HYGRO_STATUS_OK != battery_read_mv(&measurement.battery_mv))
+            {
+                /* 作用: 温湿度有效时保留采样结果，电池读取失败以 0 mV 标记未知电量。 */
+                measurement.battery_mv = 0U;
+            }
             telemetry_record_success(&measurement, uptime_ms);
-            (void) history_service_on_measurement(&measurement, uptime_ms);
+            if (!history_service_on_measurement(&measurement, uptime_ms))
+            {
+                /* 作用: 历史记录落盘失败时立即重试一次，后续采样周期还会继续重试。 */
+                (void) history_service_flush_pending();
+            }
         }
         else
         {
@@ -74,13 +90,39 @@ static void app_sample_task(void * p_argument)
     }
 }
 
+/* 作用: 周期读取最新遥测快照，并在 BLE 已连接且已订阅时发送 Notify。 */
+static void app_ble_notify_task(void * p_argument)
+{
+    TickType_t last_wake_time = xTaskGetTickCount();
+
+    (void) p_argument;
+
+    for (;;)
+    {
+        telemetry_snapshot_t snapshot;
+
+        if (ble_service_is_connected() && telemetry_get_snapshot(&snapshot))
+        {
+            (void) ble_service_notify_measurement(&snapshot.latest_measurement);
+        }
+
+        vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(APP_BLE_NOTIFY_PERIOD_MS));
+    }
+}
+
 /* 作用：初始化全部应用服务、执行无硬件自检、创建采样任务并启动调度器。 */
 void app_main(void)
 {
+    hygro_log_init(NULL);
     telemetry_init();
+    battery_init();
     configASSERT(HYGRO_STATUS_OK == sht41_init());
+    configASSERT(hygro_status_self_test());
+    configASSERT(hygro_log_self_test());
+    configASSERT(battery_self_test());
     configASSERT(telemetry_payload_self_test());
     configASSERT(ble_protocol_self_test());
+    configASSERT(ble_service_self_test());
     configASSERT(device_identity_self_test());
     configASSERT(wifi_provisioning_self_test());
     configASSERT(wifi_service_self_test());
@@ -93,6 +135,11 @@ void app_main(void)
 
     /* 命令自检会写入一笔模拟遥测数据；进入正常业务前必须清除。 */
     telemetry_init();
+    battery_init();
+    hygro_log_init(NULL);
+    configASSERT(HYGRO_STATUS_OK == sht41_init());
+    (void) ble_service_init(NULL);
+    ble_service_bind_platform(NULL);
     device_identity_init(NULL);
     device_command_init();
     ota_service_init(NULL);
@@ -108,6 +155,15 @@ void app_main(void)
                                               g_sample_task_stack,
                                               &g_sample_task_tcb);
     configASSERT(NULL != g_sample_task_handle);
+
+    g_ble_notify_task_handle = xTaskCreateStatic(app_ble_notify_task,
+                                                  "ble_notify",
+                                                  APP_BLE_NOTIFY_TASK_STACK_WORDS,
+                                                  NULL,
+                                                  APP_BLE_NOTIFY_TASK_PRIORITY,
+                                                  g_ble_notify_task_stack,
+                                                  &g_ble_notify_task_tcb);
+    configASSERT(NULL != g_ble_notify_task_handle);
 
     vTaskStartScheduler();
 

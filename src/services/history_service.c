@@ -3,6 +3,9 @@
 #include <limits.h>
 #include <string.h>
 
+#include <FreeRTOS.h>
+#include <task.h>
+
 #include "../config/app_config.h"
 
 /*
@@ -30,6 +33,8 @@ typedef struct st_history_service_context
     history_accumulator_t     accumulator;
     history_record_t          pending_record;
     bool                      has_pending_record;
+    bool                      pending_flush_in_progress;
+    bool                      window_transition_in_progress;
 } history_service_context_t;
 
 static history_service_context_t g_history;
@@ -141,25 +146,62 @@ static void history_make_pending_record(void)
 /* 作用：清空历史聚合状态，并注册记录完成后的存储回调。 */
 void history_service_init(history_append_callback_t append_callback)
 {
+    taskENTER_CRITICAL();
+
     (void) memset(&g_history, 0, sizeof(g_history));
     g_history.append_callback = append_callback;
+
+    taskEXIT_CRITICAL();
 }
 
 /* 作用：尝试再次写入上次存储失败而暂存在 RAM 中的历史记录。 */
 bool history_service_flush_pending(void)
 {
+    history_append_callback_t append_callback;
+    history_record_t          pending_record;
+
+    taskENTER_CRITICAL();
+
     if (!g_history.has_pending_record)
     {
+        taskEXIT_CRITICAL();
         return true;
     }
 
-    /* 未接入真实 Flash 前必须明确返回失败，避免业务层误认为历史记录已落盘。 */
-    if ((NULL == g_history.append_callback) || !g_history.append_callback(&g_history.pending_record))
+    /* 作用: 防止多个任务重复写入同一条待持久化的历史记录。 */
+    if (g_history.pending_flush_in_progress)
     {
+        taskEXIT_CRITICAL();
         return false;
     }
 
+    /* 未接入真实 Flash 前必须明确返回失败，避免业务层误认为历史记录已落盘。 */
+    if (NULL == g_history.append_callback)
+    {
+        taskEXIT_CRITICAL();
+        return false;
+    }
+
+    /* 作用: 在临界区复制共享数据，存储回调必须在临界区外执行。 */
+    append_callback = g_history.append_callback;
+    pending_record = g_history.pending_record;
+    g_history.pending_flush_in_progress = true;
+
+    taskEXIT_CRITICAL();
+
+    if (!append_callback(&pending_record))
+    {
+        taskENTER_CRITICAL();
+        g_history.pending_flush_in_progress = false;
+        taskEXIT_CRITICAL();
+        return false;
+    }
+
+    taskENTER_CRITICAL();
     g_history.has_pending_record = false;
+    g_history.pending_flush_in_progress = false;
+    taskEXIT_CRITICAL();
+
     return true;
 }
 
@@ -167,6 +209,7 @@ bool history_service_flush_pending(void)
 bool history_service_on_measurement(hygro_measurement_t const * p_measurement, uint32_t uptime_ms)
 {
     uint32_t const window_start_ms = history_window_start_ms(uptime_ms);
+    bool           added_to_window;
 
     if ((NULL == p_measurement) || !p_measurement->valid)
     {
@@ -179,33 +222,62 @@ bool history_service_on_measurement(hygro_measurement_t const * p_measurement, u
         return false;
     }
 
+    taskENTER_CRITICAL();
+
+    /* 作用: 防止跨窗口存储完成前并发采样覆盖新窗口首条数据。 */
+    if (g_history.window_transition_in_progress)
+    {
+        taskEXIT_CRITICAL();
+        return false;
+    }
+
     if (!g_history.accumulator.active)
     {
         history_start_window(p_measurement, window_start_ms);
+        taskEXIT_CRITICAL();
         return true;
     }
 
     if (window_start_ms == g_history.accumulator.window_start_uptime_ms)
     {
-        return history_add_to_window(p_measurement);
+        added_to_window = history_add_to_window(p_measurement);
+        taskEXIT_CRITICAL();
+        return added_to_window;
     }
 
     /* 新时间窗口到来：先完成上一窗口的记录，确认成功交给存储层后再开始新窗口。 */
     history_make_pending_record();
     g_history.accumulator.active = false;
+    g_history.window_transition_in_progress = true;
+
+    taskEXIT_CRITICAL();
+
     if (!history_service_flush_pending())
     {
+        taskENTER_CRITICAL();
+        g_history.window_transition_in_progress = false;
+        taskEXIT_CRITICAL();
         return false;
     }
 
+    taskENTER_CRITICAL();
     history_start_window(p_measurement, window_start_ms);
+    g_history.window_transition_in_progress = false;
+    taskEXIT_CRITICAL();
+
     return true;
 }
 
 /* 作用：查询是否仍有因存储失败而等待重试的历史记录。 */
 bool history_service_has_pending_record(void)
 {
-    return g_history.has_pending_record;
+    bool has_pending_record;
+
+    taskENTER_CRITICAL();
+    has_pending_record = g_history.has_pending_record;
+    taskEXIT_CRITICAL();
+
+    return has_pending_record;
 }
 
 static history_record_t g_history_test_record;

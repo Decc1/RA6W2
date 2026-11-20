@@ -6,6 +6,8 @@
 #include "sht41_codec.h"
 #include "sht41_mock.h"
 
+#include "../services/hygro_log.h"
+
 /* 当前驱动上下文；初始化阶段只复制回调指针，不保存临时数据指针。 */
 static sht41_i2c_bus_t g_sht41_bus;
 static bool             g_sht41_bus_bound;
@@ -59,7 +61,7 @@ static hygro_status_t sht41_read_measurement_once(hygro_measurement_t * p_measur
     /* CRC 错误或数据格式错误在 codec 层返回，不把坏数据写入 telemetry。 */
     return sht41_decode_measurement(response,
                                     0U,
-                                    g_sht41_sample_sequence,
+                                    0U,
                                     p_measurement);
 }
 
@@ -75,6 +77,7 @@ hygro_status_t sht41_bind_i2c_bus(sht41_i2c_bus_t const * p_bus)
 
     if (!sht41_bus_is_valid(p_bus))
     {
+        hygro_log_write(HYGRO_LOG_LEVEL_WARN, "SHT41", HYGRO_STATUS_INVALID_ARGUMENT);
         return HYGRO_STATUS_INVALID_ARGUMENT;
     }
 
@@ -93,12 +96,18 @@ hygro_status_t sht41_init(void)
 
     if (!g_sht41_bus_bound)
     {
-        return sht41_mock_init();
+        status = sht41_mock_init();
+        if (HYGRO_STATUS_OK != status)
+        {
+            hygro_log_write(HYGRO_LOG_LEVEL_ERROR, "SHT41", status);
+        }
+        return status;
     }
 
     status = sht41_write_command(SHT41_COMMAND_SOFT_RESET);
     if (HYGRO_STATUS_OK != status)
     {
+        hygro_log_write(HYGRO_LOG_LEVEL_ERROR, "SHT41", status);
         return status;
     }
 
@@ -119,7 +128,16 @@ hygro_status_t sht41_read(hygro_measurement_t * p_measurement)
 
     if (!g_sht41_bus_bound)
     {
-        return sht41_mock_read(p_measurement);
+        status = sht41_mock_read(p_measurement);
+        if (HYGRO_STATUS_OK == status)
+        {
+            p_measurement->sample_sequence = g_sht41_sample_sequence++;
+        }
+        else
+        {
+            hygro_log_write(HYGRO_LOG_LEVEL_WARN, "SHT41", status);
+        }
+        return status;
     }
 
     /* 总线瞬态错误和 CRC 错误最多重试一次；参数错误不重试。 */
@@ -128,7 +146,8 @@ hygro_status_t sht41_read(hygro_measurement_t * p_measurement)
         status = sht41_read_measurement_once(p_measurement);
         if (HYGRO_STATUS_OK == status)
         {
-            g_sht41_sample_sequence++;
+            /* 作用: 采样序号由统一入口分配，真实 I2C 和 mock 后端保持相同行为。 */
+            p_measurement->sample_sequence = g_sht41_sample_sequence++;
             return HYGRO_STATUS_OK;
         }
 
@@ -140,5 +159,6 @@ hygro_status_t sht41_read(hygro_measurement_t * p_measurement)
     }
 
     p_measurement->valid = false;
+    hygro_log_write(HYGRO_LOG_LEVEL_WARN, "SHT41", status);
     return status;
 }

@@ -23,4 +23,8 @@
 #define APP_SAMPLE_TASK_STACK_WORDS      (512U)
 #define APP_SAMPLE_TASK_PRIORITY         (2U)
 
+/* 作用: 为 BLE Notify 任务分配静态栈空间，避免运行期动态申请内存。 */
+#define APP_BLE_NOTIFY_TASK_STACK_WORDS  (384U)
+#define APP_BLE_NOTIFY_TASK_PRIORITY     (2U)
+
 #endif /* APP_CONFIG_H */
