@@ -1,4 +1,6 @@
 #include "app_main.h"
+#include "app_schedule.h"
+#include "test_runner.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -14,6 +16,8 @@
 #include "../services/history_payload.h"
 #include "../services/history_storage.h"
 #include "../services/mqtt_protocol.h"
+#include "../services/mqtt_service.h"
+#include "../services/network_sync_service.h"
 #include "../services/ota_service.h"
 #include "../services/telemetry.h"
 #include "../services/telemetry_payload.h"
@@ -37,6 +41,9 @@ static TaskHandle_t g_sample_task_handle;
 static StaticTask_t g_ble_notify_task_tcb;
 static StackType_t  g_ble_notify_task_stack[APP_BLE_NOTIFY_TASK_STACK_WORDS];
 static TaskHandle_t g_ble_notify_task_handle;
+static StaticTask_t g_network_task_tcb;
+static StackType_t  g_network_task_stack[APP_NETWORK_TASK_STACK_WORDS];
+static TaskHandle_t g_network_task_handle;
 
 /* RAFW 配置要求应用提供 Idle 和 Timer 服务任务的静态内存。 */
 static StaticTask_t g_idle_task_tcb;
@@ -51,6 +58,60 @@ static uint32_t app_get_uptime_ms(void)
     return (uint32_t) ((uint32_t) xTaskGetTickCount() * (uint32_t) portTICK_PERIOD_MS);
 }
 
+/* 作用: 根据 Wi-Fi 服务状态发起一次已保存凭据的连接，已连接时不重复关联。 */
+static hygro_status_t app_network_start_wifi(void)
+{
+    return (WIFI_SERVICE_STATE_CONNECTED == wifi_service_get_state()) ?
+           HYGRO_STATUS_OK : wifi_service_start_saved_network();
+}
+
+/* 作用: 向网络同步服务提供当前是否已完成 Wi-Fi 关联和 DHCP 的查询结果。 */
+static bool app_network_is_wifi_connected(void)
+{
+    return WIFI_SERVICE_STATE_CONNECTED == wifi_service_get_state();
+}
+
+/* 作用: 向网络同步服务转交 MQTT/TLS 连接及订阅状态机推进请求。 */
+static hygro_status_t app_network_process_mqtt(bool wifi_connected)
+{
+    return mqtt_service_process(wifi_connected);
+}
+
+/* 作用: 向网络同步服务转交最新遥测数据的 MQTT QoS 1 上报请求。 */
+static hygro_status_t app_network_publish_telemetry(telemetry_snapshot_t const * p_snapshot)
+{
+    return mqtt_service_publish_telemetry(p_snapshot);
+}
+
+/* 作用: 向网络同步服务提供线程安全的最新遥测快照读取接口。 */
+static bool app_network_get_telemetry_snapshot(telemetry_snapshot_t * p_snapshot)
+{
+    return telemetry_get_snapshot(p_snapshot);
+}
+
+/* 作用: 在一次同步会话结束时断开 MQTT/TLS，以降低待机功耗。 */
+static void app_network_disconnect_mqtt(void)
+{
+    mqtt_service_disconnect();
+}
+
+/* 作用: 在一次同步会话结束时断开 Wi-Fi，以降低待机功耗。 */
+static void app_network_disconnect_wifi(void)
+{
+    wifi_service_disconnect();
+}
+
+static network_sync_platform_ops_t const g_network_sync_ops =
+{
+    .start_wifi = app_network_start_wifi,
+    .is_wifi_connected = app_network_is_wifi_connected,
+    .process_mqtt = app_network_process_mqtt,
+    .publish_telemetry = app_network_publish_telemetry,
+    .get_telemetry_snapshot = app_network_get_telemetry_snapshot,
+    .disconnect_mqtt = app_network_disconnect_mqtt,
+    .disconnect_wifi = app_network_disconnect_wifi,
+};
+
 /* 作用：按固定周期读取 SHT41，并把成功或失败结果写入遥测与历史服务。 */
 static void app_sample_task(void * p_argument)
 {
@@ -60,29 +121,32 @@ static void app_sample_task(void * p_argument)
 
     for (;;)
     {
-        hygro_measurement_t measurement;
-        hygro_status_t      status;
-        uint32_t const      uptime_ms = app_get_uptime_ms();
-
-        status = sht41_read(&measurement);
-
-        if (HYGRO_STATUS_OK == status)
+        if (app_schedule_sample_due(app_get_uptime_ms()))
         {
-            if (HYGRO_STATUS_OK != battery_read_mv(&measurement.battery_mv))
+            hygro_measurement_t measurement;
+            hygro_status_t      status;
+            uint32_t const      uptime_ms = app_get_uptime_ms();
+
+            status = sht41_read(&measurement);
+
+            if (HYGRO_STATUS_OK == status)
             {
-                /* 作用: 温湿度有效时保留采样结果，电池读取失败以 0 mV 标记未知电量。 */
-                measurement.battery_mv = 0U;
+                if (HYGRO_STATUS_OK != battery_read_mv(&measurement.battery_mv))
+                {
+                    /* 作用: 温湿度有效时保留采样结果，电池读取失败以 0 mV 标记未知电量。 */
+                    measurement.battery_mv = 0U;
+                }
+                telemetry_record_success(&measurement, uptime_ms);
+                if (!history_service_on_measurement(&measurement, uptime_ms))
+                {
+                    /* 作用: 历史记录落盘失败时立即重试一次，后续采样周期还会继续重试。 */
+                    (void) history_service_flush_pending();
+                }
             }
-            telemetry_record_success(&measurement, uptime_ms);
-            if (!history_service_on_measurement(&measurement, uptime_ms))
+            else
             {
-                /* 作用: 历史记录落盘失败时立即重试一次，后续采样周期还会继续重试。 */
-                (void) history_service_flush_pending();
+                telemetry_record_failure(status, uptime_ms);
             }
-        }
-        else
-        {
-            telemetry_record_failure(status, uptime_ms);
         }
 
         /* BLE/Wi-Fi 任务后续从 telemetry 读取最新数据。 */
@@ -99,14 +163,41 @@ static void app_ble_notify_task(void * p_argument)
 
     for (;;)
     {
-        telemetry_snapshot_t snapshot;
-
-        if (ble_service_is_connected() && telemetry_get_snapshot(&snapshot))
+        if (app_schedule_ble_notify_due(app_get_uptime_ms()))
         {
-            (void) ble_service_notify_measurement(&snapshot.latest_measurement);
+            telemetry_snapshot_t snapshot;
+
+            if (ble_service_is_connected() && telemetry_get_snapshot(&snapshot))
+            {
+                (void) ble_service_notify_measurement(&snapshot.latest_measurement);
+            }
         }
 
         vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(APP_BLE_NOTIFY_PERIOD_MS));
+    }
+}
+
+/* 作用: 在 15 分钟周期或 BLE 配网后 Wi-Fi 已连接时，推进一次短连接 MQTT 同步会话。 */
+static void app_network_sync_task(void * p_argument)
+{
+    TickType_t last_wake_time = xTaskGetTickCount();
+
+    (void) p_argument;
+
+    for (;;)
+    {
+        uint32_t const now_ms = app_get_uptime_ms();
+        bool const wifi_connected = app_network_is_wifi_connected();
+        network_sync_state_t const sync_state = network_sync_service_get_state();
+
+        if (app_schedule_wifi_sync_due(now_ms) ||
+            (wifi_connected && (NETWORK_SYNC_STATE_IDLE == sync_state)))
+        {
+            (void) network_sync_service_request(now_ms, APP_WIFI_CONNECT_TIMEOUT_MS);
+        }
+
+        (void) network_sync_service_process(now_ms);
+        vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(APP_NETWORK_TASK_PERIOD_MS));
     }
 }
 
@@ -117,21 +208,8 @@ void app_main(void)
     telemetry_init();
     battery_init();
     configASSERT(HYGRO_STATUS_OK == sht41_init());
-    configASSERT(hygro_status_self_test());
-    configASSERT(hygro_log_self_test());
-    configASSERT(battery_self_test());
-    configASSERT(telemetry_payload_self_test());
-    configASSERT(ble_protocol_self_test());
-    configASSERT(ble_service_self_test());
-    configASSERT(device_identity_self_test());
-    configASSERT(wifi_provisioning_self_test());
-    configASSERT(wifi_service_self_test());
-    configASSERT(mqtt_protocol_self_test());
-    configASSERT(ota_service_self_test());
-    configASSERT(device_command_self_test());
-    configASSERT(history_service_self_test());
-    configASSERT(history_storage_self_test());
-    configASSERT(history_payload_self_test());
+    configASSERT(test_runner_self_test());
+    configASSERT(test_runner_run_all());
 
     /* 命令自检会写入一笔模拟遥测数据；进入正常业务前必须清除。 */
     telemetry_init();
@@ -146,6 +224,8 @@ void app_main(void)
     /* 当前使用 RAM 模拟后端；真实 Flash 到位后只替换 history_storage 的内部实现。 */
     history_storage_init();
     history_service_init(history_storage_append);
+    network_sync_service_init(&g_network_sync_ops);
+    app_schedule_init(app_get_uptime_ms());
 
     g_sample_task_handle = xTaskCreateStatic(app_sample_task,
                                               "sample",
@@ -164,6 +244,15 @@ void app_main(void)
                                                   g_ble_notify_task_stack,
                                                   &g_ble_notify_task_tcb);
     configASSERT(NULL != g_ble_notify_task_handle);
+
+    g_network_task_handle = xTaskCreateStatic(app_network_sync_task,
+                                               "net_sync",
+                                               APP_NETWORK_TASK_STACK_WORDS,
+                                               NULL,
+                                               APP_NETWORK_TASK_PRIORITY,
+                                               g_network_task_stack,
+                                               &g_network_task_tcb);
+    configASSERT(NULL != g_network_task_handle);
 
     vTaskStartScheduler();
 

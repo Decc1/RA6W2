@@ -90,6 +90,49 @@ ble_protocol_reply_status_t wifi_service_commit_credentials(wifi_credentials_t c
     return BLE_PROTOCOL_REPLY_OK;
 }
 
+/* 作用: 发起一次已保存 Wi-Fi 凭据的异步连接，连接和 DHCP 结果仍由事件回调更新。 */
+hygro_status_t wifi_service_start_saved_network(void)
+{
+    wifi_service_platform_ops_t ops;
+    wifi_service_state_t        state;
+    bool                        initialized;
+    bool                        platform_ready;
+
+    taskENTER_CRITICAL();
+    initialized = g_wifi_service.initialized;
+    platform_ready = g_wifi_service.platform_ready;
+    state = g_wifi_service.state;
+    ops = g_wifi_service.platform_ops;
+    taskEXIT_CRITICAL();
+
+    if (!initialized || !platform_ready)
+    {
+        return HYGRO_STATUS_NOT_READY;
+    }
+    if ((WIFI_SERVICE_STATE_CREDENTIALS_SAVED != state) &&
+        (WIFI_SERVICE_STATE_CONNECT_FAILED != state))
+    {
+        return ((WIFI_SERVICE_STATE_CONNECTING == state) ||
+                (WIFI_SERVICE_STATE_WAITING_FOR_IP == state) ||
+                (WIFI_SERVICE_STATE_CONNECTED == state)) ? HYGRO_STATUS_BUSY : HYGRO_STATUS_NOT_READY;
+    }
+
+    taskENTER_CRITICAL();
+    g_wifi_service.state = WIFI_SERVICE_STATE_CONNECTING;
+    taskEXIT_CRITICAL();
+
+    if (!ops.start_connect_saved_network())
+    {
+        taskENTER_CRITICAL();
+        g_wifi_service.state = WIFI_SERVICE_STATE_CONNECT_FAILED;
+        taskEXIT_CRITICAL();
+        hygro_log_write(HYGRO_LOG_LEVEL_WARN, "WIFI", HYGRO_STATUS_NETWORK_ERROR);
+        return HYGRO_STATUS_NETWORK_ERROR;
+    }
+
+    return HYGRO_STATUS_OK;
+}
+
 /* 作用: 接收无线驱动关联结果，并更新到等待 IP 或连接失败状态。 */
 void wifi_service_notify_link_result(bool connected)
 {
@@ -198,6 +241,14 @@ bool wifi_service_self_test(void)
 
     wifi_service_notify_ip_acquired();
     if (WIFI_SERVICE_STATE_CONNECTED != wifi_service_get_state())
+    {
+        return false;
+    }
+
+    wifi_service_disconnect();
+    if ((WIFI_SERVICE_STATE_CREDENTIALS_SAVED != wifi_service_get_state()) ||
+        (HYGRO_STATUS_OK != wifi_service_start_saved_network()) ||
+        (WIFI_SERVICE_STATE_CONNECTING != wifi_service_get_state()))
     {
         return false;
     }

@@ -38,4 +38,7 @@ bool telemetry_get_snapshot(telemetry_snapshot_t * p_snapshot);
 /* 仅获取最近一笔有效温湿度数据，供简单调用场景使用。 */
 bool telemetry_get_latest(hygro_measurement_t * p_measurement);
 
+/* 作用: 验证遥测快照的初始化、成功采样、失败采样和最新值读取逻辑。 */
+bool telemetry_self_test(void);
+
 #endif /* TELEMETRY_H */

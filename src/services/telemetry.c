@@ -84,3 +84,51 @@ bool telemetry_get_latest(hygro_measurement_t * p_measurement)
     *p_measurement = snapshot.latest_measurement;
     return true;
 }
+
+/* 作用: 验证遥测快照在成功和失败采样后的统计值及历史有效数据保留规则。 */
+bool telemetry_self_test(void)
+{
+    hygro_measurement_t const measurement =
+    {
+        .temperature_centi_c = 2350,
+        .humidity_centi_rh = 4560U,
+        .battery_mv = 3850U,
+        .sample_sequence = 7U,
+        .valid = true,
+    };
+    telemetry_snapshot_t snapshot = {0};
+    hygro_measurement_t latest_measurement = {0};
+
+    telemetry_init();
+    if (telemetry_get_snapshot(&snapshot) ||
+        (HYGRO_STATUS_NOT_READY != snapshot.last_error))
+    {
+        return false;
+    }
+
+    telemetry_record_success(&measurement, 100U);
+    if (!telemetry_get_snapshot(&snapshot) ||
+        (1U != snapshot.successful_sample_count) ||
+        (0U != snapshot.failed_sample_count) ||
+        (100U != snapshot.last_success_uptime_ms) ||
+        (HYGRO_STATUS_OK != snapshot.last_error) ||
+        !telemetry_get_latest(&latest_measurement) ||
+        (measurement.sample_sequence != latest_measurement.sample_sequence))
+    {
+        return false;
+    }
+
+    telemetry_record_failure(HYGRO_STATUS_BUS_TIMEOUT, 200U);
+    if (!telemetry_get_snapshot(&snapshot) ||
+        (1U != snapshot.failed_sample_count) ||
+        (1U != snapshot.consecutive_failure_count) ||
+        (200U != snapshot.last_attempt_uptime_ms) ||
+        (HYGRO_STATUS_BUS_TIMEOUT != snapshot.last_error) ||
+        (measurement.sample_sequence != snapshot.latest_measurement.sample_sequence))
+    {
+        return false;
+    }
+
+    telemetry_init();
+    return true;
+}

@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+#include "../app/hygro_status.h"
 #include "ble_protocol.h"
 #include "wifi_provisioning.h"
 
@@ -35,6 +36,9 @@ void wifi_service_init(wifi_service_platform_ops_t const * p_platform_ops);
 
 /* 供 BLE 配网状态机在 COMMIT 时调用：安全保存凭据并开始异步连接。 */
 ble_protocol_reply_status_t wifi_service_commit_credentials(wifi_credentials_t const * p_credentials);
+
+/* 作用: 发起一次已保存 Wi-Fi 凭据的异步连接，供周期性低功耗同步任务调用。 */
+hygro_status_t wifi_service_start_saved_network(void);
 
 /* 供底层 Wi-Fi 事件回调调用，分别表示链路关联结果和 DHCP/IP 获取完成。 */
 void wifi_service_notify_link_result(bool connected);

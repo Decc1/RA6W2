@@ -162,3 +162,23 @@ hygro_status_t sht41_read(hygro_measurement_t * p_measurement)
     hygro_log_write(HYGRO_LOG_LEVEL_WARN, "SHT41", status);
     return status;
 }
+
+/* 作用: 验证无板 mock 后端能返回有效测量值，且采样序号只在统一读取入口递增。 */
+bool sht41_self_test(void)
+{
+    hygro_measurement_t first_measurement = {0};
+    hygro_measurement_t second_measurement = {0};
+
+    if ((HYGRO_STATUS_OK != sht41_bind_i2c_bus(NULL)) ||
+        (HYGRO_STATUS_OK != sht41_init()) ||
+        (HYGRO_STATUS_OK != sht41_read(&first_measurement)) ||
+        (HYGRO_STATUS_OK != sht41_read(&second_measurement)) ||
+        !first_measurement.valid || !second_measurement.valid ||
+        (0U != first_measurement.sample_sequence) ||
+        (1U != second_measurement.sample_sequence))
+    {
+        return false;
+    }
+
+    return HYGRO_STATUS_INVALID_ARGUMENT == sht41_read(NULL);
+}

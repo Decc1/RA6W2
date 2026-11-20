@@ -50,4 +50,7 @@ hygro_status_t sht41_init(void);
 /* 读取一笔温湿度测量值。 */
 hygro_status_t sht41_read(hygro_measurement_t * p_measurement);
 
+/* 作用: 验证无板 mock 初始化、测量有效性和采样序号分配规则。 */
+bool sht41_self_test(void);
+
 #endif /* SHT41_H */

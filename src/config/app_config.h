@@ -10,6 +10,12 @@
 /* Wi-Fi 短连接同步周期：15 分钟。 */
 #define APP_WIFI_SYNC_PERIOD_MS          (15U * 60U * 1000U)
 
+/* Wi-Fi 关联与 DHCP 获取 IP 的最长等待时间，超时后本轮同步立即释放无线资源。 */
+#define APP_WIFI_CONNECT_TIMEOUT_MS      (30000U)
+
+/* 网络同步任务轮询状态机的节拍；不等同于 Wi-Fi 保持连接时间。 */
+#define APP_NETWORK_TASK_PERIOD_MS       (1000U)
+
 /* 历史曲线聚合周期：每 15 分钟生成一笔温湿度统计记录。 */
 #define APP_HISTORY_WINDOW_MS             (15U * 60U * 1000U)
 
@@ -26,5 +32,9 @@
 /* 作用: 为 BLE Notify 任务分配静态栈空间，避免运行期动态申请内存。 */
 #define APP_BLE_NOTIFY_TASK_STACK_WORDS  (384U)
 #define APP_BLE_NOTIFY_TASK_PRIORITY     (2U)
+
+/* 网络同步任务的静态栈和优先级，与采样任务同级，避免阻塞传感器采样。 */
+#define APP_NETWORK_TASK_STACK_WORDS     (512U)
+#define APP_NETWORK_TASK_PRIORITY        (2U)
 
 #endif /* APP_CONFIG_H */
