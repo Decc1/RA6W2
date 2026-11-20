@@ -184,6 +184,10 @@
       <description>Virtual EEPROM (W)</description>
       <originalPack>Renesas.RAFW.2.2.1.pack</originalPack>
     </component>
+    <component apiversion="" class="HAL Drivers" condition="" group="all" subgroup="r_i2c_master_w" variant="" vendor="Renesas" version="2.2.1">
+      <description>I2C Master Interface</description>
+      <originalPack>Renesas.RAFW.2.2.1.pack</originalPack>
+    </component>
   </raComponentSelection>
   <raElcConfiguration/>
   <raIcuConfiguration/>
@@ -194,9 +198,29 @@
       <property id="module.driver.gpio_w.pincfg" value="g_bsp_pin_cfg"/>
     </module>
     <module id="module.middleware.rm_freertos_port.0"/>
+    <module id="module.driver.i2c_on_i2c_master_w.1829416621">
+      <property id="module.driver.i2c_master_w.name" value="g_i2c_sht41"/>
+      <property id="module.driver.i2c_master_w.channel" value="1"/>
+      <property id="module.driver.i2c_master_w.rate" value="module.driver.i2c_master_w.rate.rate_fast"/>
+      <property id="module.driver.i2c_master_w.rate_value" value="0"/>
+      <property id="module.driver.i2c_master_w.rise_time_ns" value="0"/>
+      <property id="module.driver.i2c_master_w.fall_time_ns" value="0"/>
+      <property id="module.driver.i2c_master_w.duty" value="50"/>
+      <property id="module.driver.i2c_master_w.bus_clear" value="module.driver.i2c_master_w.bus_clear.disabled"/>
+      <property id="module.driver.i2c_master_w.scl_stuck_timeout" value="0xFFFFFFFF"/>
+      <property id="module.driver.i2c_master_w.sda_stuck_timeout" value="0xFFFFFFFF"/>
+      <property id="module.driver.i2c_master_w.slave" value="0x44"/>
+      <property id="module.driver.i2c_master_w.addr_mode" value="module.driver.i2c_master_w.addr_mode.addr_mode_7bit"/>
+      <property id="module.driver.i2c_master_w.enable_dma_bursts_tx" value="module.driver.i2c_master_w.enable_dma_bursts_tx.disabled"/>
+      <property id="module.driver.i2c_master_w.enable_dma_bursts_rx" value="module.driver.i2c_master_w.enable_dma_bursts_rx.disabled"/>
+      <property id="module.driver.i2c_master_w.p_callback" value="NULL"/>
+      <property id="module.driver.i2c_master_w.ipl" value="_disabled"/>
+      <property id="module.driver.i2c_master_w.gen_ipl" value="board.icu.common.irq.priority12"/>
+    </module>
     <context id="_hal.0">
       <stack module="module.driver.ioport_on_gpio_w.0"/>
       <stack module="module.middleware.rm_freertos_port.0"/>
+      <stack module="module.driver.i2c_on_i2c_master_w.1829416621"/>
     </context>
     <config id="config.driver.tim_w">
       <property id="config.driver.tim_w.param_checking_enable" value="config.driver.tim_w.param_checking_enable.bsp"/>
@@ -220,6 +244,13 @@
     <config id="config.driver.uart_w">
       <property id="config.driver.uart_w.param_checking_enable" value="config.driver.uart_w.param_checking_enable.bsp"/>
       <property id="config.driver.uart_w.dma_support" value="config.driver.uart_w.dma_support.disabled"/>
+    </config>
+    <config id="config.driver.i2c_master_w">
+      <property id="config.driver.i2c_master_w.param_checking_enable" value="config.driver.i2c_master_w.param_checking_enable.bsp"/>
+      <property id="config.driver.i2c_master_w.dtc_enable" value="config.driver.i2c_master_w.dtc_enable.disabled"/>
+      <property id="config.driver.i2c_master_w.dma_enable" value="config.driver.i2c_master_w.dma_enable.disabled"/>
+      <property id="config.driver.i2c_master_w.generic_only" value="config.driver.i2c_master_w.generic_only.enabled"/>
+      <property id="config.driver.i2c_master_w.transfer_api_tx_buf_size" value="256"/>
     </config>
     <config id="config.driver.ext_irq_w">
       <property id="config.driver.ext_irq_w.param_checking_enable" value="config.driver.ext_irq_w.param_checking_enable.bsp"/>

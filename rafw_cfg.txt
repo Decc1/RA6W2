@@ -173,6 +173,13 @@ FSP Configuration
     Parameter Checking: Default (BSP)
     
   Module "FreeRTOS Port W (rm_freertos_port_w)"
+  Module "I2C Master (r_i2c_master_w)"
+    Parameter Checking: Default (BSP)
+    DTC on Transmission and Reception: Disabled
+    DMAC on Transmission and Reception: Disabled
+    Use ONLY the Generic Interrupt: Enabled
+    Maximum Transmission Length (Used when DTC/DMA support is enabled): 256
+    
   FreeRTOS
     General: Custom FreeRTOSConfig.h: 
     General: Use Preemption: Enabled
@@ -248,3 +255,22 @@ FSP Configuration
       Pin Configuration Name: g_bsp_pin_cfg
       
     Instance "FreeRTOS Port W (rm_freertos_port_w)"
+    Instance "g_i2c_sht41 I2C Master (r_i2c_master_w)"
+      Name: g_i2c_sht41
+      Channel: 1
+      Rate: Fast-mode
+      Custom Rate (bps): 0
+      Rise Time (ns): 0
+      Fall Time (ns): 0
+      Duty Cycle (%): 50
+      Bus Clear: Disabled
+      SCL Stuck at Low Timeout: 0xFFFFFFFF
+      SDA Stuck at Low Timeout: 0xFFFFFFFF
+      Slave Address: 0x44
+      Address Mode: 7-Bit
+      Enable Bursts in DMA TX: Disabled
+      Enable Bursts in DMA RX: Disabled
+      Callback: NULL
+      Interrupt Priority Level: Transmit, Receive, and Transmit End: Disabled
+      Interrupt Priority Level: Generic: Priority 12
+      
